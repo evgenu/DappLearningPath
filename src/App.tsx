@@ -1,81 +1,21 @@
 import * as React from 'react';
 import * as https from 'https';
-import styled from 'styled-components';
 
 import Web3Modal from 'web3modal';
 // @ts-ignore
 import WalletConnectProvider from '@walletconnect/web3-provider';
+import ConnectButton from './components/ConnectButton';
 import Column from './components/Column';
-import Wrapper from './components/Wrapper';
 import Header from './components/Header';
 import Loader from './components/Loader';
-import ConnectButton from './components/ConnectButton';
 
 import { Web3Provider } from '@ethersproject/providers';
 import { getChainData } from './helpers/utilities';
-import { US_ELECTION_ADDRESS, ETHERSCAN_API_KEY } from './constants';
+import { US_ELECTION_ADDRESS, ETHERSCAN_API_KEY, IAppState, IVoteData } from './constants';
+import { SLayout, SContent, SContainer, SLanding } from './style'
 import { getContract } from './helpers/ethers';
 
 import US_ELECTION from './constants/abis/USElection.json';
-
-const SLayout = styled.div`
-  position: relative;
-  width: 100%;
-  min-height: 100vh;
-  text-align: center;
-`;
-
-const SContent = styled(Wrapper)`
-  width: 100%;
-  height: 100%;
-  padding: 0 16px;
-`;
-
-const SContainer = styled.div`
-  height: 100%;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  word-break: break-word;
-`;
-
-const SLanding = styled(Column)`
-  height: 600px;
-`;
-
-// @ts-ignore
-const SBalances = styled(SLanding)`
-  height: 100%;
-  & h3 {
-    padding-top: 30px;
-  }
-`;
-
-interface IAppState {
-  fetching: boolean;
-  address: string;
-  library: any;
-  connected: boolean;
-  chainId: number;
-  pendingRequest: boolean;
-  result: any | null;
-  electionContract: any | null;
-  info: any | null;
-  currentLeader: number;
-  transactionHash: number;
-  transactionStatus: string;
-  electionEnded: boolean;
-  winner: string;
-}
-
-interface IVoteData {
-  state: string;
-  votesBiden: number;
-  votesTrump: number;
-  seats: number;
-}
 
 const INITIAL_VOTE: IVoteData = {
   state: '',
@@ -206,7 +146,7 @@ class App extends React.Component<any, any> {
 
     const transactionReceipts = await transaction.wait();
     if (transactionReceipts.status !== 1) {
-      alert("Failed")
+      alert("Cannot submit election result.");
     }
 
     await this.currentLeader()
@@ -214,7 +154,9 @@ class App extends React.Component<any, any> {
 
   public endElection = async () => {
     const { electionContract } = this.state;
-    await electionContract.endElection();
+    await electionContract.endElection().catch((e: any) => {
+      alert("Cannot end election.");
+    });
 
     this.provider.on("LogElectionEnded", (electionWinner: string) => {
       this.setState({ winner: electionWinner });
