@@ -13,8 +13,7 @@ import ConnectButton from './components/ConnectButton';
 
 import { Web3Provider } from '@ethersproject/providers';
 import { getChainData } from './helpers/utilities';
-import { US_ELECTION_ADDRESS } from './constants';
-import { ETHERSCAN_API_KEY } from './constants/keys';
+import { US_ELECTION_ADDRESS, ETHERSCAN_API_KEY } from './constants';
 import { getContract } from './helpers/ethers';
 
 import US_ELECTION from './constants/abis/USElection.json';
@@ -76,6 +75,13 @@ interface IVoteData {
   seats: number;
 }
 
+const INITIAL_VOTE: IVoteData = {
+  state: '',
+  votesBiden: 0,
+  votesTrump: 0,
+  seats: 0
+}
+
 const INITIAL_STATE: IAppState = {
   fetching: false,
   address: '',
@@ -102,6 +108,9 @@ class App extends React.Component<any, any> {
     super(props);
     this.state = {
       ...INITIAL_STATE
+    };
+    this.vote = {
+      ...INITIAL_VOTE
     };
 
     this.web3Modal = new Web3Modal({
@@ -159,17 +168,8 @@ class App extends React.Component<any, any> {
     await this.setState({ currentLeader });
   };
 
-  public handleSubmit(event : any) {
-    const submittedInformation = {};
-    submittedInformation[event.target.name] = event.target.value;
-    const infoIndex = ["State", "VotesBiden", "VotesTrump", "Seats"]
-    this.vote.state = submittedInformation[infoIndex[0]];
-    this.vote.votesBiden = submittedInformation[infoIndex[1]];
-    this.vote.votesTrump = submittedInformation[infoIndex[2]];
-    this.vote.seats = submittedInformation[infoIndex[3]];
-  }
-
-  public submitElectionResult = async () => {
+  public submitElectionResult = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
     const { electionContract } = this.state;
 
     const dataArr = [
@@ -178,12 +178,6 @@ class App extends React.Component<any, any> {
       this.vote.votesTrump,
       this.vote.seats
     ];
-    // const dataArr = [
-    //   'Ohio',
-    //   50,
-    //   51,
-    //   24
-    // ];
 
     let transactionInformation = ' ';
 
@@ -202,14 +196,13 @@ class App extends React.Component<any, any> {
 
     });
 
-    await this.setState({ transactionStatus: transactionInformation });
+    await this.setState({ transactionStatus: JSON.stringify(transactionInformation) });
 
     await this.setState({ transactionHash: transaction.hash });
-    alert(transaction.hash);
 
     const transactionReceipts = await transaction.wait();
     if (transactionReceipts.status !== 1) {
-      alert("Cannot submit vote!");
+      alert("Failed")
     }
   }
 
@@ -299,18 +292,18 @@ class App extends React.Component<any, any> {
           />
 
           {this.state.connected && <form onSubmit={this.submitElectionResult}>
-            <label>State: <input type="text" name="State" /></label>
-            <label>Biden: <input type="text" name="VotesBiden" /></label>
-            <label>Trump: <input type="text" name="VotesTrump" /></label>
-            <label>Seats: <input type="text" name="Seats" /></label>
-            <input type="submit" value="Submit" />
+            <label>State: <input type="text" name="State" onChange={event => {this.vote.state = event.target.value}}/></label>
+            <label>Biden: <input type="text" name="VotesBiden" onChange={event => {this.vote.votesBiden = Number(event.target.value)}}/></label>
+            <label>Trump: <input type="text" name="VotesTrump" onChange={event => {this.vote.votesTrump = Number(event.target.value)}}/></label>
+            <label>Seats: <input type="text" name="Seats" onChange={event => {this.vote.seats = Number(event.target.value)}}/></label>
+            <input type="submit" value="Submit"/>
           </form>}
           {this.state.connected && <ConnectButton onClick={this.currentLeader} value="Refresh Leaderboard" />}
           {this.state.connected && <h1>
           {this.state.currentLeader !== 0 ? (("Current leader is").concat(" ", (this.state.currentLeader - 1) ? "TRUMP" : "BIDEN")) : 'It is a tie' }
           </h1>}
           {this.state.connected && <h3>{this.state.transactionHash ? this.state.transactionHash : "No current transtaction"}</h3>}
-          {this.state.connected && <h3>{this.state.transactionHash ? this.state.transactionStatus : ""}</h3>}
+          {this.state.connected && <h3>{this.state.transactionHash ? this.state.transactionStatus : "no status"}</h3>}
           <SContent>
             {fetching ? (
               <Column center>
