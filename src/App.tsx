@@ -66,6 +66,8 @@ interface IAppState {
   currentLeader: number;
   transactionHash: number;
   transactionStatus: string;
+  electionEnded: boolean;
+  winner: string;
 }
 
 interface IVoteData {
@@ -94,7 +96,9 @@ const INITIAL_STATE: IAppState = {
   info: null,
   currentLeader: 0,
   transactionHash: 0,
-  transactionStatus: ''
+  transactionStatus: '',
+  electionEnded: false,
+  winner: ''
 };
 
 class App extends React.Component<any, any> {
@@ -204,6 +208,17 @@ class App extends React.Component<any, any> {
     if (transactionReceipts.status !== 1) {
       alert("Failed")
     }
+
+    await this.currentLeader()
+  }
+
+  public endElection = async () => {
+    const { electionContract } = this.state;
+    await electionContract.endElection();
+
+    this.provider.on("LogElectionEnded", (electionWinner: string) => {
+      this.setState({ winner: electionWinner });
+    });
   }
 
   public subscribeToProviderEvents = async (provider:any) => {
@@ -291,19 +306,21 @@ class App extends React.Component<any, any> {
             killSession={this.resetApp}
           />
 
-          {this.state.connected && <form onSubmit={this.submitElectionResult}>
+          {this.state.connected && this.state.winner === '' && <form onSubmit={this.submitElectionResult}>
             <label>State: <input type="text" name="State" onChange={event => {this.vote.state = event.target.value}}/></label>
             <label>Biden: <input type="text" name="VotesBiden" onChange={event => {this.vote.votesBiden = Number(event.target.value)}}/></label>
             <label>Trump: <input type="text" name="VotesTrump" onChange={event => {this.vote.votesTrump = Number(event.target.value)}}/></label>
             <label>Seats: <input type="text" name="Seats" onChange={event => {this.vote.seats = Number(event.target.value)}}/></label>
             <input type="submit" value="Submit"/>
           </form>}
-          {this.state.connected && <ConnectButton onClick={this.currentLeader} value="Refresh Leaderboard" />}
-          {this.state.connected && <h1>
-          {this.state.currentLeader !== 0 ? (("Current leader is").concat(" ", (this.state.currentLeader - 1) ? "TRUMP" : "BIDEN")) : 'It is a tie' }
+          {this.state.connected && this.state.winner === '' && <ConnectButton onClick={this.currentLeader} value="Refresh Leaderboard" />}
+          {this.state.connected && this.state.winner === '' && <h1>
+          {this.state.winner === '' && this.state.currentLeader !== 0 ? (("Current leader is").concat(" ", (this.state.currentLeader - 1) ? "TRUMP" : "BIDEN")) : 'It is a tie' }
           </h1>}
-          {this.state.connected && <h3>{this.state.transactionHash ? this.state.transactionHash : "No current transtaction"}</h3>}
-          {this.state.connected && <h3>{this.state.transactionHash ? this.state.transactionStatus : "no status"}</h3>}
+          {this.state.connected && this.state.winner === '' && <h3>{this.state.transactionHash ? this.state.transactionHash : "No current transtaction"}</h3>}
+          {this.state.connected && this.state.winner === '' && <h3>{this.state.transactionHash ? this.state.transactionStatus : "no status"}</h3>}
+          {this.state.connected && this.state.winner === '' && <ConnectButton onClick={this.endElection} value="End Election" />}
+          {this.state.connected && this.state.winner !== '' && <h3>{("Current leader is").concat(" ", (this.state.currentLeader - 1) ? "TRUMP" : "BIDEN")}</h3>}
           <SContent>
             {fetching ? (
               <Column center>
